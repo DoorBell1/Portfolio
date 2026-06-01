@@ -480,30 +480,47 @@
     <section id="research">
         <h2>Research Experience</h2>
         
-        <div class="item">
-            <div class="item-header">
-                <span>Undergraduate Research Assistant</span>
-                <span>Jan 2026 – May 2026</span>
+        <div class="project-container" style="display: flex; gap: 30px; align-items: flex-start;">
+            <div class="project-info" style="flex: 2;">
+                <div class="item-header">
+                    <span>Undergraduate Research Assistant</span>
+                    <span>Jan 2026 – May 2026</span>
+                </div>
+                <div class="item-sub">
+                    <span>Ubiquitous Communication and Networking (UCaN) Lab</span>
+                    <span>Distributed Spectrum Sensing Algorithm Models</span>
+                </div>
+                <ul>
+                    <li>Deployed and Implemented a multi-node wireless network via Raspberry Pis, collecting RSSI and throughput measurements for ML Algorithm Training.</li>
+                    <li>Automated data collection and controlled experimental parameters using XMLRPC and ZMQ Python scripts, implementing them seamlessly on Raspberry Pi node networks.</li>
+                    <li>Modified Distributed Spectrum Sensing Algorithm submodels, increasing consensus accuracy to ~95% and improving decision speed by ~20%.</li>
+                    <li>Integrated Linux-based Testbed Controller (Ubuntu) to support Software Defined Radio spectrum sensing experiments and Raspberry Pi control.</li>
+                    <li>Developed MATLAB probability density function models to characterize detection thresholds, reducing false detection rates in the DSS algorithm.</li>
+                    <li>Wrote and deployed Bash scripts for testbed controller to Raspberry Pi to securely transfer Python scripts, CSV data files, and to save collected experimental data.</li>
+                </ul>
+                
+                <div style="margin-top: 25px;">
+                    <a href="NewSDR2026.pdf" target="_blank" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 1.1rem;">📊</span> View NEWSDR 2026 Poster (PDF)
+                    </a>
+                </div>
             </div>
-            <div class="item-sub">
-                <span>Ubiquitous Communication and Networking (UCaN) Lab</span>
-                <span>Distributed Spectrum Sensing Algorithm Models</span>
+
+            <div class="project-media" style="flex: 1; min-width: 250px;">
+                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
+                    <p style="font-size: 0.9rem; color: #475569; margin-top: 0; margin-bottom: 15px; font-weight: 600;">Poster Preview</p>
+                    
+                    <a href="NewSDR2026.pdf" target="_blank">
+                        <img src="NewSDR2026_thumbnail.jpg" alt="NewSDR 2026 Distributed Spectrum Sensing Poster" style="width: 100%; height: auto; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'" onerror="this.onerror=null; this.src='https://via.placeholder.com/400x550.png?text=Click+to+View+Full+Poster';">
+                    </a>
+                </div>
             </div>
-            <ul>
-                <li>Deployed and Implemented a multi-node wireless network via Raspberry Pis, collecting RSSI and throughput measurements for ML Algorithm Training.</li>
-                <li>Automated data collection and controlled experimental parameters using XMLRPC and ZMQ Python scripts, implementing them seamlessly on Raspberry Pi node networks.</li>
-                <li>Modified Distributed Spectrum Sensing Algorithm submodels, increasing consensus accuracy to ~95% and improving decision speed by ~20%.</li>
-                <li>Integrated Linux-based Testbed Controller (Ubuntu) to support Software Defined Radio spectrum sensing experiments and Raspberry Pi control.</li>
-                <li>Developed MATLAB probability density function models to characterize detection thresholds, reducing false detection rates in the DSS algorithm.</li>
-                <li>Wrote and deployed Bash scripts for testbed controller to Raspberry Pi to securely transfer Python scripts, CSV data files, and to save collected experimental data.</li>
-            </ul>
         </div>
     </section>
 
     <section id="projects">
         <h2>Engineering Projects</h2>
         
-        <!-- PROJECT 1: STM32 DRONE HEALTH MONITOR -->
         <div class="project-container">
             <div class="project-info">
                 <div class="item-header">
@@ -522,7 +539,6 @@
             </div>
         </div>
 
-        <!-- PROJECT 2: PIANO LEARNING SYSTEM -->
         <div class="project-container">
             <div class="project-info">
                 <div class="item-header">
@@ -541,7 +557,6 @@
             </div>
         </div>
 
-        <!-- PROJECT 3: AM RADIO RECEIVER & TRANSMITTER -->
         <div class="project-container">
             <div class="project-info">
                 <div class="item-header">
@@ -599,7 +614,6 @@
 
 </div>
 
-<!-- CONTACT MODAL POPUP LAYER -->
 <div id="contactModal" class="modal-overlay" onclick="closeContactModalViaOverlay(event)">
     <div class="modal-content">
         <button class="modal-close" onclick="closeContactModal()">&times;</button>
