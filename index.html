@@ -263,14 +263,15 @@
         .code-block {
             margin: 0;
             padding: 15px;
-            color: #e2e8f0;
+            color: #cbd5e1;
             font-family: "Fira Code", Consolas, Monaco, monospace;
             font-size: 0.85rem;
             overflow-x: auto;
-            max-height: 300px;
+            max-height: 400px;
             overflow-y: auto;
             white-space: pre;
             line-height: 1.5;
+            background: #0f172a;
         }
 
         /* Grid for Skills and Conferences */
@@ -671,60 +672,443 @@
                 </p>
 
                 <details class="code-details">
-                    <summary class="code-summary">💻 View MATLAB Implementation Script</summary>
-                    <pre class="code-block"><code>% =========================================================================
-% Digital AM Modulation and Demodulation System Pipeline
-% Authored by: Simon Pham
-% Core Architecture: Baseband Loading -> DSB-SC AM -> Multipath Nulling
-% =========================================================================
-
-clc; 
+                    <summary class="code-summary">💻 View Complete MATLAB Implementation Code</summary>
+                    <pre class="code-block"><code>clc; 
 clear; 
 close all; 
 
-%% 1. Load Audio and Initialize DSP System Parameters
-% Load high-resolution audio sample baseline pipeline
+%% Load Signal
+% Audio Sample [Sampling Rate = 192k]
 [y192, Fs192] = audioread("inputData/myName192kHz.wav");
 
-freq_limit = 200;           % Optimization step frequency resolution limit
-Fc = 20000;                 % 20 kHz Carrier frequency for AM translation
-cutoff = 20000;             % 20 kHz low-pass bandwidth limit for vocal range
-M = 501;                    % FIR filter length window coefficient parameters
-delaySec = 0.1;             % Channel propagation delay simulation (seconds)
-volume = 0.6;               % Echo path attenuation scale factor (&alpha;)
+%% Variables
+% Limit Frequency Range [0 to (192k/2=)96k] (I use 200Hz so it runs faster)
+freq_limit = 200; 
 
+% Carrier Frequency For AM Modulation
+Fc = 20000;
+
+% Cutoff Frequency For AM Demodulation Lowpass [Human Voice: ~0 to ~20k]
+cutoff = 20000;
+
+% Filter length [Higher = More Resolution]
+M = 501;
+
+% Delay For Voice in Seconds
+delaySec = 0.1;
+
+% Attenuating Volume [0 to 1]
+volume = 0.6;
+
+%% Plotting Original Signal
+% Discrete Number Of Values
 N = length(y192);
 n = 0:N-1;
-t192 = n / Fs192;           % Time vector definition
 
-%% 2. DSB-SC Amplitude Modulation Stage
-carrier = cos(2*pi*Fc*t192)';
-modulated_signal = y192 .* carrier;
+% Discrete Number Of Values / Sample Rate To Get Time Vector
+t192 = n / Fs192;
 
-%% 3. Channel Impairments (Multipath Reflection / Delay Modeling)
+% Plotting Time Domain Signal
+figure;
+subplot(4, 2, 1);
+plot(t192, y192, 'b');
+title('Original Audio - Time Domain');
+xlabel('Time (s)');
+ylabel('Magnitude');
+soundOriginal = audioplayer(y192, Fs192, 24);
+
+% Frequency Limit To See Human Voice In The Signal
+K = round(freq_limit * N / Fs192);
+
+% Manually Calculated FFT
+f192 = zeros(K, 1);
+for k = 1:K
+     f192(k) = sum(y192(:, 1) .* exp(-1j * 2 * pi * (k - 1) / N * n'));
+end
+freqs = (0:k-1) * Fs192 / N;
+
+% Plotting Frequency Domain Signal
+subplot(4, 2, 2);
+plot(freqs, abs(f192));
+title('Original Audio - Frequency Domain');
+xlabel('Frequency (Hz)');
+ylabel('Magnitude');
+
+%% AM Modulation
+% Carrier Wave
+carrier = cos(2 * pi * Fc * t192);
+
+% Messenger Wave Modulated With Carrier Wave - - - AM Signal
+am_signal = ((1 + y192(:, 1)') .* carrier).';
+
+% Plotting Time Domain Signal
+subplot(4, 2, 3);
+plot(t192, am_signal, 'b');
+title('AM Modulation - Time Domain');
+xlabel('Time (s)'); 
+ylabel('Magnitude');
+soundModulated = audioplayer(am_signal, Fs192, 24);
+
+% Manually Calculated FFT
+f_am = zeros(K, 1);
+for k = 1:K
+    f_am(k) = sum(am_signal(:, 1) .* exp(-1j * 2 * pi * (k - 1) / N * n'));
+end
+
+% Plotting Frequency Domain Signal
+subplot(4, 2, 4);
+plot(freqs, abs(f_am));
+title('AM Modulation - Frequency Domain');
+xlabel('Frequency (Hz)'); 
+ylabel('Magnitude');
+
+%% AM Demodulation FIR
+% Coherent Demodulation
+demod_raw = am_signal.' .* carrier;
+
+% Normalized to Sample Rate
+wc = 2 * pi * cutoff / Fs192;
+
+% Filter length & MSE
+m = 0:M-1;
+alpha = (M - 1) / 2;
+
+% Low Pass With Sinc Impulse Response
+h = sin(wc * (m - alpha)) ./ (pi * (m - alpha));
+h(alpha + 1) = wc / pi;
+h = h / sum(h);
+
+% Plotting Impulse Response
+subplot(4, 2, 5);
+plot(0:M-1, h); grid on;
+title('Transfer Function - Coefficients');
+xlabel('Index');
+ylabel('Magnitude');
+
+% Manually Calculated FFT
+H = zeros(K, 1);
+for k = 1:K
+    H(k) = sum(h .* exp(-1j * 2 * pi * (k - 1) / K * m));
+end
+
+% Frequency Range to Show All of Transfer Function
+fTrans = (0:K-1) * Fs192 / K;
+
+% Limiting Range because Transfer Function Turns to a 'U' else wise.
+nyquist = fTrans <= Fs192 / 2;
+
+% Plotting Frequency Response
+subplot(4, 2, 6);
+plot(fTrans(nyquist), 20 * log10(abs(H(nyquist)))); grid on;
+title('Transfer Function - Frequency Response');
+xlabel('Frequency (Hz)');
+ylabel('Magnitude');
+
+% Manually Calculated FIR
+demod_signal = zeros(N, 1);
+for i = 1:N
+    for j = 1:M
+        if (i - j + 1 > 0)
+            demod_signal(i) = demod_signal(i) + demod_raw(i - j + 1) * h(j);
+        end
+    end
+end
+demod_signal = demod_signal - mean(demod_signal);
+demod_signal = 2 * demod_signal;
+
+% Plotting Time Domain Signal
+subplot(4, 2, 7);
+plot(t192, demod_signal, 'b');
+title('Demodulated Signal - Time Domain');
+xlabel('Time (s)'); 
+ylabel('Magnitude');
+soundDemodulated = audioplayer(demod_signal, Fs192, 24);
+
+% Manually Calculated FFT
+f_demod = zeros(K, 1);
+for k = 1:K
+    f_demod(k) = sum(demod_signal(:, 1) .* exp(-1j * 2 * pi * (k - 1) / N * n'));
+end
+
+% Plotting Frequency Domain Signal
+subplot(4, 2, 8);
+plot(freqs, abs(f_demod));
+title('Demodulated Signal - Frequency Domain');
+xlabel('Frequency (Hz)'); 
+ylabel('Magnitude');
+
+%% Plotting Original Signal For Next Graphs
+% Plotting Time Domain Signal
+figure;
+subplot(4, 2, 1);
+plot(t192, y192, 'b');
+title('Original Audio - Time Domain');
+xlabel('Time (s)');
+ylabel('Magnitude');
+
+% Plotting Frequency Domain Signal
+subplot(4, 2, 2);
+plot(freqs, abs(f192));
+title('Original Audio - Frequency Domain');
+xlabel('Frequency (Hz)');
+ylabel('Magnitude');
+
+%% Creating Delay
+% Delay samples
 delaySamples = round(delaySec * Fs192);
-echo_signal = zeros(size(y192));
-echo_signal(delaySamples+1:end) = y192(1:end-delaySamples);
-corrupted_received = modulated_signal + (volume * echo_signal .* carrier);
 
-%% 4. Coherent Demodulation & Inverse Rational Equalization Stage
-demod_raw = corrupted_received .* carrier;
+% Delay Time Signal
+yDelay(:, 1) = y192(:, 1);
+for i = (delaySamples + 1):N
+    yDelay(i, 1) = y192(i, 1) + volume * y192(i - delaySamples, 1);
+end
 
-% Equalizer Matrix Definition: H(z) = 1 / (1 + alpha * z^-D)
-% Formulate coefficients for concurrent Inverse IIR execution loop
-b_eq = 1;
-a_eq = zeros(1, delaySamples + 1);
-a_eq(1) = 1;
-a_eq(delaySamples + 1) = volume;
+% Plotting Time Domain Signal
+subplot(4, 2, 3);
+plot(t192, yDelay, 'b');
+title('Delayed Audio - Time Domain');
+xlabel('Time (s)');
+ylabel('Magnitude');
+soundDelay = audioplayer(yDelay, Fs192, 24);
 
-% Filter system parameters to reconstruct pristine channel output
-equalized_demod = filter(b_eq, a_eq, demod_raw);
+% Delay Frequency Signal
+fDelay = zeros(K, 1);
+for k = 1:K
+    fDelay(k) = sum(yDelay(:, 1) .* exp(-1j * 2 * pi * (k - 1) / N * n'));
+end
 
-%% 5. Analytical Evaluation of System Transfer Function Matrices
-% Generate composite discrete analysis arrays
-N_fft = length(equalized_demod);
-freqs = (-N_fft/2:N_fft/2-1) * (Fs192 / N_fft);
-signal_spectrum = fftshift(fft(equalized_demod));</code></pre>
+% Plotting Frequency Domain Signal
+subplot(4, 2, 4);
+plot(freqs, abs(fDelay));
+title('Delayed Audio - Frequency Domain');
+xlabel('Time (s)');
+ylabel('Magnitude');
+
+%% Removing Delay With IIR
+yClean = zeros(size(yDelay));
+for i = 1:N
+    if i > delaySamples % Meaning delaySec Has Passed
+        yClean(i, 1) = -volume * yClean(i - delaySamples, 1) + yDelay(i, 1);
+    else % Meaning Delay Hasn't Started Yet
+        yClean(i, 1) = yDelay(i, 1);
+    end
+end
+
+% Transfer Function Formula From Slides H(e^(jw)) = 1/(1-ae^(-jw))
+co = zeros(1, delaySamples + 1);
+co(1) = 1;
+co(end) = -volume;
+H = zeros(size(freqs));
+for k = 1:K
+    H(k) = 1 ./ (co * (exp(-1j * 2 * pi * freqs(k) / Fs192 * (0:delaySamples))).');
+end
+
+% Plotting Coefficients
+subplot(4, 2, 5);
+hold on;
+stem(0:length(co)-1, co, 'filled');
+stem(0:length(1)-1, 1, 'filled');
+hold off;
+title('Transfer Function - Coefficients');
+xlabel('Index');
+ylabel('Magnitude');
+legend('denominator', 'numerator');
+
+% Plotting Magnitude Response
+subplot(4, 2, 6);
+plot(freqs, abs(H), 'b');
+title('Transfer Function - Magnitude Response');
+xlabel('Frequency (Hz)');
+ylabel('Magnitude');
+
+% Plotting Time Domain Signal
+subplot(4, 2, 7);
+plot(t192, yClean, 'b');
+title('Clean Audio - Time Domain');
+xlabel('Time (s)');
+ylabel('Magnitude');
+soundClean = audioplayer(yClean, Fs192, 24);
+
+% Manually Calculated FFT
+fClean = zeros(K, 1);
+for k = 1:K
+    fClean(k) = sum(yClean(:, 1) .* exp(-1j * 2 * pi * (k - 1) / N * n'));
+end
+
+% Plotting Frequency Domain Signal
+subplot(4, 2, 8);
+plot(freqs, abs(fClean));
+title('Clean Audio - Frequency Domain');
+xlabel('Time (s)');
+ylabel('Magnitude');
+
+%% Mod -> Demod -> Delay -> DeDelay
+% Redefine the signal length and index vector
+x = y192(:, 1);
+N = length(x);
+n = 0:N-1;
+
+% AM Modulation
+carrier2 = cos(2 * pi * Fc * t192).';
+am_signal2 = (1 + x) .* carrier2;
+
+% AM Coherent Demodulation
+demod_raw2 = am_signal2 .* carrier2;
+
+% FIR Lowpass
+wc = 2 * pi * cutoff / Fs192;
+m = 0:M-1;
+alpha = (M - 1) / 2;
+h = sin(wc * (m - alpha)) ./ (pi * (m - alpha));
+h(alpha + 1) = wc / pi;
+h = h / sum(h);
+
+% Transfer function FFT display
+Hlp = zeros(K, 1);
+for k = 1:K
+    Hlp(k) = sum(h .* exp(-1j * 2 * pi * (k - 1) / K * m));
+end
+fTrans = (0:K-1) * Fs192 / K;
+nyquist = fTrans <= Fs192 / 2;
+
+% Manual FIR Convolution
+demod_signal2 = zeros(N, 1);
+for i = 1:N
+    for j = 1:M
+        if (i - j + 1 > 0)
+            demod_signal2(i) = demod_signal2(i) + demod_raw2(i - j + 1) * h(j);
+        end
+    end
+end
+demod_signal2 = demod_signal2 - mean(demod_signal2);
+demod_signal2 = 2 * demod_signal2;
+soundDemodulated2 = audioplayer(demod_signal2, Fs192, 24);
+
+% Delay (applying to the DEMOD signal)
+delaySamples = round(delaySec * Fs192);
+yDelay2 = demod_signal2;
+for i = (delaySamples + 1):N
+    yDelay2(i, 1) = demod_signal2(i, 1) + volume * demod_signal2(i - delaySamples, 1);
+end
+soundDelay2 = audioplayer(yDelay2, Fs192, 24);
+
+% Removing Delay With IIR (inverse comb)
+yClean2 = zeros(size(yDelay2));
+for i = 1:N
+    if i > delaySamples
+        yClean2(i, 1) = yDelay2(i, 1) - volume * yClean2(i - delaySamples, 1);
+    else
+        yClean2(i, 1) = yDelay2(i, 1);
+    end
+end
+soundClean2 = audioplayer(yClean2, Fs192, 24);
+
+%% Time & Freq Domain Plots for (Original, Mod2, Demod2, Delay2, and DeDelay2)
+figure;
+
+% Original (Time Domain)
+subplot(5, 2, 1);
+plot(t192, x, 'b');
+title('Original - Time Domain');
+xlabel('Time (s)'); ylabel('Magnitude');
+
+% Original (Frequency Domain)
+f_orig2 = zeros(K, 1);
+for k = 1:K
+    f_orig2(k) = sum(x .* exp(-1j * 2 * pi * (k - 1) / N * n'));
+end
+subplot(5, 2, 2);
+plot(freqs, abs(f_orig2), 'b');
+title('Original - Frequency Domain');
+xlabel('Frequency (Hz)'); ylabel('Magnitude');
+
+% AM Mod (Time Domain)
+subplot(5, 2, 3);
+plot(t192, am_signal2, 'b');
+title('AM Modulated (Mod2) - Time Domain');
+xlabel('Time (s)'); ylabel('Magnitude');
+
+% AM Mod (Frequency Domain)
+f_am2 = zeros(K, 1);
+for k = 1:K
+    f_am2(k) = sum(am_signal2 .* exp(-1j * 2 * pi * (k - 1) / N * n'));
+end
+subplot(5, 2, 4);
+plot(freqs, abs(f_am2), 'b');
+title('AM Modulated (Mod2) - Frequency Domain');
+xlabel('Frequency (Hz)'); ylabel('Magnitude');
+
+% Demod (Time Domain)
+subplot(5, 2, 5);
+plot(t192, demod_signal2, 'b');
+title('Demodulated (Demod2) - Time Domain');
+xlabel('Time (s)'); ylabel('Magnitude');
+
+% Demod (Frequency Domain)
+f_demod2 = zeros(K, 1);
+for k = 1:K
+    f_demod2(k) = sum(demod_signal2 .* exp(-1j * 2 * pi * (k - 1) / N * n'));
+end
+subplot(5, 2, 6);
+plot(freqs, abs(f_demod2), 'b');
+title('Demodulated (Demod2) - Frequency Domain');
+xlabel('Frequency (Hz)'); ylabel('Magnitude');
+
+% Delay (Time Domain)
+subplot(5, 2, 7);
+plot(t192, yDelay2, 'b');
+title('Demod + Delay (Delay2) - Time Domain');
+xlabel('Time (s)'); ylabel('Magnitude');
+
+% Delay (Frequency Domain)
+f_delay2 = zeros(K, 1);
+for k = 1:K
+    f_delay2(k) = sum(yDelay2 .* exp(-1j * 2 * pi * (k - 1) / N * n'));
+end
+subplot(5, 2, 8);
+plot(freqs, abs(f_delay2), 'b');
+title('Demod + Delay (Delay2) - Frequency Domain');
+xlabel('Frequency (Hz)'); ylabel('Magnitude');
+
+% Clean (Time Domain)
+subplot(5, 2, 9);
+plot(t192, yClean2, 'b');
+title('Final: Delay Removed (DeDelay2) - Time Domain');
+xlabel('Time (s)'); ylabel('Magnitude');
+
+% Clean (Frequency Domain)
+f_clean2 = zeros(K, 1);
+for k = 1:K
+    f_clean2(k) = sum(yClean2 .* exp(-1j * 2 * pi * (k - 1) / N * n'));
+end
+subplot(5, 2, 10);
+plot(freqs, abs(f_clean2), 'b');
+title('Final: Delay Removed (DeDelay2) - Frequency Domain');
+xlabel('Frequency (Hz)'); ylabel('Magnitude');
+
+% Audio players
+soundOriginal2  = audioplayer(x, Fs192, 24);
+soundModulated2 = audioplayer(am_signal2, Fs192, 24);
+soundDemod2     = audioplayer(demod_signal2, Fs192, 24);
+soundDelay2     = audioplayer(yDelay2, Fs192, 24);
+soundClean2     = audioplayer(yClean2, Fs192, 24);
+
+%% To Hear Sounds, type "play(sound...)"
+% Original Audio File
+disp('Original:          play(soundOriginal)');
+% Mod and Demod Audio
+disp('AM Modulated:      play(soundModulated)');
+disp('AM Demodulation:   play(soundDemodulated)');
+% Delay and Clean Audio
+disp('With Delay:        play(soundDelay)');
+disp('Delay Removed:     play(soundClean)');
+% Mod -> Demod -> Delay -> DeDelay Audio in order
+disp('Original:        play(soundOriginal2)');
+disp('AM Modulated:    play(soundModulated2)');
+disp('Demodulated:     play(soundDemod2)');
+disp('With Delay:      play(soundDelay2)');
+disp('Delay Removed:   play(soundClean2)');
+</code></pre>
                 </details>
             </div>
             <div class="project-media">
