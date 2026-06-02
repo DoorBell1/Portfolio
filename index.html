@@ -238,6 +238,41 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
+        /* Toggle Dropdown Style for Code Snippets */
+        .code-details {
+            margin-top: 15px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: #0f172a;
+            overflow: hidden;
+        }
+        .code-summary {
+            padding: 10px 15px;
+            background: #1e293b;
+            color: #cbd5e1;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            user-select: none;
+            outline: none;
+            border-bottom: 1px solid transparent;
+        }
+        .code-details[open] .code-summary {
+            border-bottom: 1px solid #334155;
+        }
+        .code-block {
+            margin: 0;
+            padding: 15px;
+            color: #e2e8f0;
+            font-family: "Fira Code", Consolas, Monaco, monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre;
+            line-height: 1.5;
+        }
+
         /* Grid for Skills and Conferences */
         .skills-grid {
             display: grid;
@@ -634,6 +669,63 @@
                 <p class="project-desc">
                     Applied core Signals and Systems concepts to real audio processing in MATLAB by designing a digital AM communication system. Implemented AM modulation to shift a baseband audio signal to a 20 kHz carrier, verified frequency translation using FFT analysis, and recovered the signal through coherent demodulation and FIR low-pass filtering. Modeled delay and echo effects and removed them using an inverse IIR filter. Results matched theoretical expectations for frequency shifting, filter frequency response, time-domain convolution, Z-transform analysis, and sampling theory (Nyquist rate).
                 </p>
+
+                <details class="code-details">
+                    <summary class="code-summary">💻 View MATLAB Implementation Script</summary>
+                    <pre class="code-block"><code>% =========================================================================
+% Digital AM Modulation and Demodulation System Pipeline
+% Authored by: Simon Pham
+% Core Architecture: Baseband Loading -> DSB-SC AM -> Multipath Nulling
+% =========================================================================
+
+clc; 
+clear; 
+close all; 
+
+%% 1. Load Audio and Initialize DSP System Parameters
+% Load high-resolution audio sample baseline pipeline
+[y192, Fs192] = audioread("inputData/myName192kHz.wav");
+
+freq_limit = 200;           % Optimization step frequency resolution limit
+Fc = 20000;                 % 20 kHz Carrier frequency for AM translation
+cutoff = 20000;             % 20 kHz low-pass bandwidth limit for vocal range
+M = 501;                    % FIR filter length window coefficient parameters
+delaySec = 0.1;             % Channel propagation delay simulation (seconds)
+volume = 0.6;               % Echo path attenuation scale factor (&alpha;)
+
+N = length(y192);
+n = 0:N-1;
+t192 = n / Fs192;           % Time vector definition
+
+%% 2. DSB-SC Amplitude Modulation Stage
+carrier = cos(2*pi*Fc*t192)';
+modulated_signal = y192 .* carrier;
+
+%% 3. Channel Impairments (Multipath Reflection / Delay Modeling)
+delaySamples = round(delaySec * Fs192);
+echo_signal = zeros(size(y192));
+echo_signal(delaySamples+1:end) = y192(1:end-delaySamples);
+corrupted_received = modulated_signal + (volume * echo_signal .* carrier);
+
+%% 4. Coherent Demodulation & Inverse Rational Equalization Stage
+demod_raw = corrupted_received .* carrier;
+
+% Equalizer Matrix Definition: H(z) = 1 / (1 + alpha * z^-D)
+% Formulate coefficients for concurrent Inverse IIR execution loop
+b_eq = 1;
+a_eq = zeros(1, delaySamples + 1);
+a_eq(1) = 1;
+a_eq(delaySamples + 1) = volume;
+
+% Filter system parameters to reconstruct pristine channel output
+equalized_demod = filter(b_eq, a_eq, demod_raw);
+
+%% 5. Analytical Evaluation of System Transfer Function Matrices
+% Generate composite discrete analysis arrays
+N_fft = length(equalized_demod);
+freqs = (-N_fft/2:N_fft/2-1) * (Fs192 / N_fft);
+signal_spectrum = fftshift(fft(equalized_demod));</code></pre>
+                </details>
             </div>
             <div class="project-media">
                 <img src="DigitalAM.jpg" alt="MATLAB Simulation Plots for Digital AM System" style="width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.05);" onerror="this.onerror=null; this.src='https://via.placeholder.com/400x300.png?text=MATLAB+Simulation';">
